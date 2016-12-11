@@ -24,14 +24,39 @@ You should call the `moveToApplications` method as soon as possible after the ap
 ready event in the main process. Ideally before the user has any chance to interact
 with the application.
 
+`moveToApplications` returns a promise that will resolve when the application is
+in the correct location or an error occurred. You can also provide an optional
+node-style callback as the only parameter.
+
+
+### ES5
 ```javascript
 const {app} = require('electron');
 const {moveToApplications} = require('electron-lets-move');
 
-app.on('ready', () => {
-  moveToApplications();
+app.on('ready', function() {
+  moveToApplications(function(err) {
+    if (err) {
+      // log error, something went wrong whilst moving the app.
+    }
 
-  // do the rest of your application startup
+    // do the rest of your application startup
+  });
+});
+```
+
+### ES6
+```javascript
+import {app} from 'electron';
+import {moveToApplications} from 'electron-lets-move';
+
+app.on('ready', async () => {
+  try {
+    await moveToApplications();
+    // do the rest of your application startup
+  } catch (error) {
+    // log error, something went wrong whilst moving the app.
+  }
 });
 ```
 

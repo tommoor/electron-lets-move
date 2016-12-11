@@ -1,4 +1,4 @@
-const { app, dialog } = require('electron');
+const { app, dialog, shell } = require('electron');
 const os = require('os');
 const cp = require('child_process');
 const sudo = require('sudo-prompt');
@@ -37,6 +37,11 @@ function preferredInstallLocation() {
   return rootApplicationPath;
 }
 
+function moveToTrash(directory) {
+  if (!fs.existsSync(directory)) return true;
+  return shell.moveItemToTrash(directory);
+}
+
 function getDialogMessage(needsAuthorization) {
   let detail;
 
@@ -49,18 +54,40 @@ function getDialogMessage(needsAuthorization) {
   return detail;
 }
 
-function moveToApplications() {
+function moveToApplications(callback) {
+  let resolve;
+  let reject;
   const bundlePath = getBundlePath();
   const fileName = path.basename(bundlePath);
-  const newBundlePath = path.join(preferredInstallLocation(), fileName);
+  const installLocation = path.join(preferredInstallLocation(), fileName);
 
-  // If we're not on MacOS then don't continue
-  if (os.platform() !== 'darwin') return;
+  // We return a promise so that the parent application can await the result.
+  // Also support an optional callback for those that prefer a callback style.
+  const deferred = new Promise((res, rej) => {
+    resolve = (response) => {
+      if (callback) callback(null, response);
+      res(response);
+    };
+    reject = (error) => {
+      if (callback) callback(error);
+      rej(error);
+    };
+  });
 
-  // Skip if the application is already in some Applications folder,
-  if (isInApplicationsFolder()) return;
+  // If we're not on MacOS then we're done here.
+  if (os.platform() !== 'darwin') {
+    resolve();
+    return deferred;
+  }
 
-  canWrite(newBundlePath, (err, isWritable) => {
+  // Skip if the application is already in some Applications folder
+  if (isInApplicationsFolder()) {
+    resolve();
+    return deferred;
+  }
+
+  // Check if the install location needs administrator permissions
+  canWrite(installLocation, (err, isWritable) => {
     const needsAuthorization = !isWritable;
 
     // show dialog requesting to move
@@ -73,14 +100,20 @@ function moveToApplications() {
     });
 
     // user chose to do nothing
-    if (chosen !== 0) return;
+    if (chosen !== 0) {
+      resolve();
+      return;
+    }
 
     const moved = (error) => {
-      if (error) throw error;
+      if (error) {
+        reject(error);
+        return;
+      }
 
       // open the moved app
       const execName = path.basename(process.execPath);
-      const execPath = path.join(newBundlePath, 'Contents', 'MacOS', execName);
+      const execPath = path.join(installLocation, 'Contents', 'MacOS', execName);
       const child = cp.spawn(execPath, [], {
         detached: true,
         stdio: 'ignore',
@@ -91,14 +124,22 @@ function moveToApplications() {
       app.exit();
     };
 
+    // move any existing application bundle to the trash
+    if (!moveToTrash(installLocation)) {
+      reject(new Error('Failed to move existing application to Trash, it may be in use.'));
+      return;
+    }
+
     // move the application bundle
-    const command = `mv ${bundlePath} ${newBundlePath}`;
+    const command = `mv ${bundlePath} ${installLocation}`;
     if (needsAuthorization) {
       sudo.exec(command, { name: app.getName() }, moved);
     } else {
       cp.exec(command, moved);
     }
   });
+
+  return deferred;
 }
 
 module.exports = {
