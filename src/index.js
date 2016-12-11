@@ -76,13 +76,13 @@ function moveToApplications(callback) {
 
   // If we're not on MacOS then we're done here.
   if (os.platform() !== 'darwin') {
-    resolve();
+    resolve(true);
     return deferred;
   }
 
   // Skip if the application is already in some Applications folder
   if (isInApplicationsFolder()) {
-    resolve();
+    resolve(true);
     return deferred;
   }
 
@@ -101,7 +101,7 @@ function moveToApplications(callback) {
 
     // user chose to do nothing
     if (chosen !== 0) {
-      resolve();
+      resolve(false);
       return;
     }
 

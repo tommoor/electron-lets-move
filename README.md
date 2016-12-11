@@ -9,7 +9,7 @@ folder if opened from another location. Inspired by [LetsMove](https://github.co
 
 ## Requirements
 
-This module is designed to be used within Electron on macOS, it can be included in a cross platform Electron app and will be a no-op on Windows and Linux.
+This module is designed to be used within Electron on macOS, it can be included in a cross platform Electron app and is a no-op on the Windows and Linux platforms.
 
 
 ## Installation
@@ -24,8 +24,8 @@ ready event in the main process. Ideally before the user has any chance to inter
 with the application.
 
 `moveToApplications` returns a promise that will resolve when the application is
-in the correct location or an error occurred. You can also provide an optional
-node-style callback as the only parameter.
+in the correct location, the user asked not to move or an error occurred. You can
+also provide an optional node-style callback as the only parameter.
 
 
 ### ES5
@@ -34,9 +34,13 @@ const {app} = require('electron');
 const {moveToApplications} = require('electron-lets-move');
 
 app.on('ready', function() {
-  moveToApplications(function(err) {
+  moveToApplications(function(err, moved) {
     if (err) {
       // log error, something went wrong whilst moving the app.
+    }
+    if (!moved) {
+      // the user asked not to move the app, it's up to the parent application
+      // to store this information and not hassle them again.
     }
 
     // do the rest of your application startup
@@ -51,11 +55,16 @@ import {moveToApplications} from 'electron-lets-move';
 
 app.on('ready', async () => {
   try {
-    await moveToApplications();
-    // do the rest of your application startup
-  } catch (error) {
+    const moved = await moveToApplications();
+    if (!moved) {
+      // the user asked not to move the app, it's up to the parent application
+      // to store this information and not hassle them again.
+    }
+  } catch (err) {
     // log error, something went wrong whilst moving the app.
   }
+
+  // do the rest of your application startup
 });
 ```
 
