@@ -1,0 +1,10 @@
+{
+  "name": "electron-lets-move",
+  "main": "src/index.js",
+  "version": "0.0.1",
+  "license": "MIT",
+  "repository": "tommoor/electron-lets-move",
+  "dependencies": {
+    "sudo-prompt": "^6.2.0"
+  }
+}

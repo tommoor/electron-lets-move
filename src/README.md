@@ -1,0 +1,2 @@
+- Must be in main process
+- Must be within app.on('ready') event
