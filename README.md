@@ -9,7 +9,7 @@ folder if opened from another location. Inspired by [LetsMove](https://github.co
 
 ## Requirements
 
-This module is designed to be used within Electron on OSX.
+This module is designed to be used within Electron on macOS, it can be included in a cross platform Electron app and will be a no-op on Windows and Linux.
 
 
 ## Installation
