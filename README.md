@@ -1,3 +1,5 @@
+[![npm version](https://badge.fury.io/js/electron-lets-move.svg)](https://badge.fury.io/js/electron-lets-move)
+
 # Electron LetsMove
 
 A module that offers to automatically move your Electron app to the Applications
