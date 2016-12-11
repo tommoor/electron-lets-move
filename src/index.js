@@ -67,13 +67,13 @@ function moveToApplications() {
     const detail = getDialogMessage(needsAuthorization);
     const chosen = dialog.showMessageBox({
       type: 'question',
-      buttons: ['Do Not Move', 'Move to Applications'],
+      buttons: ['Move to Applications', 'Do Not Move'],
       message: 'Move to Applications folder?',
       detail,
     });
 
     // user chose to do nothing
-    if (chosen === 0) return;
+    if (chosen !== 0) return;
 
     const moved = (error) => {
       if (error) throw error;

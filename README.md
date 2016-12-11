@@ -13,10 +13,16 @@ folder if opened from another location. Inspired by [LetsMove](https://github.co
 This module is designed to be used within Electron on OSX.
 
 
+## Installation
+
+`npm install --save electron-lets-move`
+
+
 ## Usage
 
 You should call the `moveToApplications` method as soon as possible after the app
-ready event in the main process.
+ready event in the main process. Ideally before the user has any chance to interact
+with the application.
 
 ```javascript
 const {app} = require('electron');
