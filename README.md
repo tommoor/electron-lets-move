@@ -16,7 +16,7 @@ This module is designed to be used within Electron on OSX.
 You should call the `moveToApplications` method as soon as possible after the app
 ready event in the main process.
 
-```
+```javascript
 const {app} = require('electron');
 const {moveToApplications} = require('electron-lets-move');
 
