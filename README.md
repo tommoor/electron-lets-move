@@ -5,8 +5,7 @@
 A module that offers to automatically move your Electron app to the Applications
 folder if opened from another location. Inspired by [LetsMove](https://github.com/potionfactory/LetsMove) for MacOS.
 
-![Electron LetsMove](https://cloud.githubusercontent.com/assets/380914/21077515/323c21ca-bf03-11e6-83bb-3ffc8c7d926c.png)
-
+![Electron LetsMove](https://cloud.githubusercontent.com/assets/380914/21082066/31881d30-bf88-11e6-8110-9526168eb95b.png)
 
 ## Requirements
 
