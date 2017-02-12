@@ -54,6 +54,33 @@ function getDialogMessage(needsAuthorization) {
   return detail;
 }
 
+function shellQuotedString(string) {
+  return `'${string.replace("'", "'\\''")}'`;
+}
+
+function relaunch(execPath) {
+  const quotedDestinationPath = shellQuotedString(execPath);
+
+  // Before we launch the new app, clear xattr:com.apple.quarantine to avoid
+  // duplicate "scary file from the internet" dialog.
+  // see: https://github.com/tommoor/electron-lets-move/issues/1
+  const preOpenCmd = `/usr/bin/xattr -d -r com.apple.quarantine ${quotedDestinationPath}`;
+
+  // The shell script waits until the original app process terminates.
+  // This is done so that the relaunched app opens as the front-most app.
+  const script = `(while /bin/kill -0 ${process.pid} >&/dev/null; do /bin/sleep 0.1; done; ${preOpenCmd}; /usr/bin/open ${quotedDestinationPath})`;
+
+  const child = cp.spawn(script, {
+    shell: true,
+    detached: true,
+    stdio: 'ignore',
+  });
+  child.unref();
+
+  // quit the app immediately
+  app.exit();
+}
+
 function moveToApplications(callback) {
   let resolve;
   let reject;
@@ -105,6 +132,12 @@ function moveToApplications(callback) {
       return;
     }
 
+    // move any existing application bundle to the trash
+    if (!moveToTrash(installLocation)) {
+      reject(new Error('Failed to move existing application to Trash, it may be in use.'));
+      return;
+    }
+
     const moved = (error) => {
       if (error) {
         reject(error);
@@ -114,21 +147,8 @@ function moveToApplications(callback) {
       // open the moved app
       const execName = path.basename(process.execPath);
       const execPath = path.join(installLocation, 'Contents', 'MacOS', execName);
-      const child = cp.spawn(execPath, [], {
-        detached: true,
-        stdio: 'ignore',
-      });
-      child.unref();
-
-      // quit the app immediately
-      app.exit();
+      relaunch(execPath);
     };
-
-    // move any existing application bundle to the trash
-    if (!moveToTrash(installLocation)) {
-      reject(new Error('Failed to move existing application to Trash, it may be in use.'));
-      return;
-    }
 
     // move the application bundle
     const command = `mv ${bundlePath} ${installLocation}`;
