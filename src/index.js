@@ -5,9 +5,11 @@ const sudo = require('sudo-prompt');
 const path = require('path');
 const fs = require('fs');
 
+const userDataPath = app.getPath('userData');
 const exePath = app.getPath('exe');
 const rootApplicationPath = '/Applications';
 const userApplicationPath = path.join(app.getPath('home'), 'Applications');
+const letsMoveFile = path.join(userDataPath, 'letsMove');
 
 function getBundlePath() {
   const bundleExtension = '.app';
@@ -28,6 +30,15 @@ function isInApplicationsFolder() {
 function isInDownloadsFolder() {
   const downloadsPath = app.getPath('downloads');
   return exePath.startsWith(downloadsPath);
+}
+
+function isDialogSuppressed() {
+  try {
+    fs.accessSync(letsMoveFile, fs.constants.F_OK);
+    return false;
+  } catch (err) {
+    return true;
+  }
 }
 
 function preferredInstallLocation() {
@@ -86,24 +97,15 @@ function moveToApplications(callback) {
     return deferred;
   }
 
+  // Skip if user has previously checked "Don't show me this again"
+  if (isDialogSuppressed()) {
+    resolve(true);
+    return deferred;
+  }
+
   // Check if the install location needs administrator permissions
   canWrite(installLocation, (err, isWritable) => {
     const needsAuthorization = !isWritable;
-
-    // show dialog requesting to move
-    const detail = getDialogMessage(needsAuthorization);
-    const chosen = dialog.showMessageBox({
-      type: 'question',
-      buttons: ['Move to Applications', 'Do Not Move'],
-      message: 'Move to Applications folder?',
-      detail,
-    });
-
-    // user chose to do nothing
-    if (chosen !== 0) {
-      resolve(false);
-      return;
-    }
 
     const moved = (error) => {
       if (error) {
@@ -124,19 +126,41 @@ function moveToApplications(callback) {
       app.exit();
     };
 
-    // move any existing application bundle to the trash
-    if (!moveToTrash(installLocation)) {
-      reject(new Error('Failed to move existing application to Trash, it may be in use.'));
-      return;
-    }
+    // show dialog requesting to move
+    const detail = getDialogMessage(needsAuthorization);
+    dialog.showMessageBox({
+      type: 'question',
+      buttons: ['Move to Applications', 'Do Not Move'],
+      message: 'Move to Applications folder?',
+      checkboxLabel: 'Do not show this message again',
+      detail,
+    }, (chosen, dontShowAgain) => {
+      // user chose not to see this again, we write a file in the application
+      // data directory so that we know not to display this next time.
+      if (dontShowAgain) {
+        fs.writeFile(letsMoveFile, 'dontMove');
+      }
 
-    // move the application bundle
-    const command = `mv ${bundlePath} ${installLocation}`;
-    if (needsAuthorization) {
-      sudo.exec(command, { name: app.getName() }, moved);
-    } else {
-      cp.exec(command, moved);
-    }
+      // user chose to do nothing
+      if (chosen !== 0) {
+        resolve(false);
+        return;
+      }
+
+      // move any existing application bundle to the trash
+      if (!moveToTrash(installLocation)) {
+        reject(new Error('Failed to move existing application to Trash, it may be in use.'));
+        return;
+      }
+
+      // move the application bundle
+      const command = `mv ${bundlePath} ${installLocation}`;
+      if (needsAuthorization) {
+        sudo.exec(command, { name: app.getName() }, moved);
+      } else {
+        cp.exec(command, moved);
+      }
+    });
   });
 
   return deferred;
