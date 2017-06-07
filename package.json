@@ -1,7 +1,7 @@
 {
   "name": "electron-lets-move",
   "main": "src/index.js",
-  "version": "0.0.5",
+  "version": "0.0.6",
   "license": "MIT",
   "repository": "tommoor/electron-lets-move",
   "dependencies": {
