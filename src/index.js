@@ -30,12 +30,25 @@ function isInDownloadsFolder() {
   return exePath.startsWith(downloadsPath);
 }
 
-function preferredInstallLocation(preferRoot) {
-  if (!preferRoot && fs.existsSync(userApplicationPath)) {
-    return userApplicationPath;
-  }
+function preferredInstallLocation(callback) {
+  canWrite(
+    rootApplicationPath,
+    (err, isWritable) => {
+      const result = {
+        path: rootApplicationPath,
+        needsAuthorization: !isWritable
+      };
 
-  return rootApplicationPath;
+      if(!isWritable && fs.existsSync(userApplicationPath)) {
+        result.path = userApplicationPath;
+        result.needsAuthorization = false;
+      }
+
+      callback(null, result);
+    }
+  );
+
+  return ;
 }
 
 function moveToTrash(directory) {
@@ -55,14 +68,11 @@ function getDialogMessage(needsAuthorization) {
   return detail;
 }
 
-function moveToApplications(opts) {
+function moveToApplications(callback) {
   let resolve;
   let reject;
-  const callback = typeof(opts) == 'function' ? opts : opts.callback;
   const bundlePath = getBundlePath();
   const fileName = path.basename(bundlePath);
-  const installDirectory = preferredInstallLocation(opts.preferRoot);
-  const installLocation = path.join(installDirectory, fileName);
 
   // We return a promise so that the parent application can await the result.
   // Also support an optional callback for those that prefer a callback style.
@@ -89,9 +99,11 @@ function moveToApplications(opts) {
     return deferred;
   }
 
-  // Check if the install location needs administrator permissions
-  canWrite(installDirectory, (err, isWritable) => {
-    const needsAuthorization = !isWritable;
+  // Get the install location and whether or not it needs authorization
+  preferredInstallLocation((err, location) => {
+    const installDirectory = location.path;
+    const installLocation = path.join(installDirectory, fileName);
+    const needsAuthorization = location.needsAuthorization;
 
     // show dialog requesting to move
     const detail = getDialogMessage(needsAuthorization);
