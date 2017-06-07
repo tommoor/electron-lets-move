@@ -58,10 +58,11 @@ function getDialogMessage(needsAuthorization) {
 function moveToApplications(opts) {
   let resolve;
   let reject;
-  const callback = typeof(opts) =='function' ? opts : opts.callback;
+  const callback = typeof(opts) == 'function' ? opts : opts.callback;
   const bundlePath = getBundlePath();
   const fileName = path.basename(bundlePath);
-  const installLocation = path.join(preferredInstallLocation(opts.preferRoot), fileName);
+  const installDirectory = preferredInstallLocation(opts.preferRoot);
+  const installLocation = path.join(installDirectory, fileName);
 
   // We return a promise so that the parent application can await the result.
   // Also support an optional callback for those that prefer a callback style.
@@ -89,7 +90,7 @@ function moveToApplications(opts) {
   }
 
   // Check if the install location needs administrator permissions
-  canWrite(installLocation, (err, isWritable) => {
+  canWrite(installDirectory, (err, isWritable) => {
     const needsAuthorization = !isWritable;
 
     // show dialog requesting to move
