@@ -1,3 +1,5 @@
+**This functionality is now baked into Electron and the project is archived. I suggest using the [new native API](https://github.com/electron/electron/blob/c0e9dbcc0081aec773016cd08a759929536aaae4/docs/api/app.md#appisinapplicationsfolder-macos).**
+
 [![npm version](https://badge.fury.io/js/electron-lets-move.svg)](https://badge.fury.io/js/electron-lets-move)
 
 # Electron LetsMove
