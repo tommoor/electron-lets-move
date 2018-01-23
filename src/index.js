@@ -15,10 +15,13 @@ function getBundlePath() {
   return `${parts[0]}${bundleExtension}`;
 }
 
-function canWrite(filePath, callback) {
-  fs.access(filePath, fs.W_OK, (err) => {
-    callback(null, !err);
-  });
+function canWrite(filePath) {
+  try {
+    fs.accessSync(filePath, fs.W_OK);
+    return true;
+  } catch(e) {
+    return false;
+  }
 }
 
 function isInApplicationsFolder() {
@@ -31,10 +34,18 @@ function isInDownloadsFolder() {
 }
 
 function preferredInstallLocation() {
-  if (fs.existsSync(userApplicationPath)) {
-    return userApplicationPath;
+  const canWriteRoot = canWrite(rootApplicationPath);
+  const result = {
+    path: rootApplicationPath,
+    needsAuthorization: !canWriteRoot
+  };
+
+  if(!canWriteRoot && fs.existsSync(userApplicationPath) && canWrite(userApplicationPath)) {
+      result.path = userApplicationPath;
+      result.needsAuthorization = false;
   }
-  return rootApplicationPath;
+
+  return result;
 }
 
 function moveToTrash(directory) {
@@ -59,7 +70,6 @@ function moveToApplications(callback) {
   let reject;
   const bundlePath = getBundlePath();
   const fileName = path.basename(bundlePath);
-  const installLocation = path.join(preferredInstallLocation(), fileName);
 
   // We return a promise so that the parent application can await the result.
   // Also support an optional callback for those that prefer a callback style.
@@ -86,58 +96,59 @@ function moveToApplications(callback) {
     return deferred;
   }
 
-  // Check if the install location needs administrator permissions
-  canWrite(installLocation, (err, isWritable) => {
-    const needsAuthorization = !isWritable;
+  // Get the install location and whether or not it needs authorization
+  const location = preferredInstallLocation();
+  const installDirectory = location.path;
+  const installLocation = path.join(installDirectory, fileName);
+  const needsAuthorization = location.needsAuthorization;
 
-    // show dialog requesting to move
-    const detail = getDialogMessage(needsAuthorization);
-    const chosen = dialog.showMessageBox({
-      type: 'question',
-      buttons: ['Move to Applications', 'Do Not Move'],
-      message: 'Move to Applications folder?',
-      detail,
-    });
-
-    // user chose to do nothing
-    if (chosen !== 0) {
-      resolve(false);
-      return;
-    }
-
-    const moved = (error) => {
-      if (error) {
-        reject(error);
-        return;
-      }
-
-      // open the moved app
-      const execName = path.basename(process.execPath);
-      const execPath = path.join(installLocation, 'Contents', 'MacOS', execName);
-      const child = cp.spawn(execPath, [], {
-        detached: true,
-        stdio: 'ignore',
-      });
-      child.unref();
-
-      // quit the app immediately
-      app.exit();
-    };
-
-    // move any existing application bundle to the trash
-    if (!moveToTrash(installLocation)) {
-      reject(new Error('Failed to move existing application to Trash, it may be in use.'));
-      return;
-    }
-
-    // move the application bundle
-    const command = `mv ${bundlePath} ${installLocation}`;
-    if (needsAuthorization) {
-      sudo.exec(command, { name: app.getName() }, moved);
-    } else {
-      cp.exec(command, moved);
-    }
+  // show dialog requesting to move
+  const detail = getDialogMessage(needsAuthorization);
+  const chosen = dialog.showMessageBox({
+    type: 'question',
+    buttons: ['Move to Applications', 'Do Not Move'],
+    message: 'Move to Applications folder?',
+    detail,
   });
+
+  // user chose to do nothing
+  if (chosen !== 0) {
+    resolve(false);
+    return;
+  }
+
+  const moved = (error) => {
+    if (error) {
+      reject(error);
+      return;
+    }
+
+    // open the moved app
+    const execName = path.basename(process.execPath);
+    const execPath = path.join(installLocation, 'Contents', 'MacOS', execName);
+    const child = cp.spawn(execPath, [], {
+      detached: true,
+      stdio: 'ignore',
+    });
+    child.unref();
+
+    // quit the app immediately
+    app.exit();
+  };
+
+  // move any existing application bundle to the trash
+  if (!moveToTrash(installLocation)) {
+    reject(new Error('Failed to move existing application to Trash, it may be in use.'));
+    return;
+  }
+
+  // move the application bundle
+  const command = `mv ${bundlePath} ${installLocation}`;
+  if (needsAuthorization) {
+    sudo.exec(command, { name: app.getName() }, moved);
+  } else {
+    cp.exec(command, moved);
+  }
 
   return deferred;
 }

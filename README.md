@@ -36,16 +36,19 @@ const {app} = require('electron');
 const {moveToApplications} = require('electron-lets-move');
 
 app.on('ready', function() {
-  moveToApplications(function(err, moved) {
-    if (err) {
-      // log error, something went wrong whilst moving the app.
-    }
-    if (!moved) {
-      // the user asked not to move the app, it's up to the parent application
-      // to store this information and not hassle them again.
-    }
+  moveToApplications({
+    preferRoot: true|false,
+    callback: (err, moved) => {
+      if (err) {
+        // log error, something went wrong whilst moving the app.
+      }
+      if (!moved) {
+        // the user asked not to move the app, it's up to the parent application
+        // to store this information and not hassle them again.
+      }
 
-    // do the rest of your application startup
+      // do the rest of your application startup
+    }  
   });
 });
 ```
@@ -57,7 +60,8 @@ import {moveToApplications} from 'electron-lets-move';
 
 app.on('ready', async () => {
   try {
-    const moved = await moveToApplications();
+    const opts = {};    
+    const moved = await moveToApplications(opts);
     if (!moved) {
       // the user asked not to move the app, it's up to the parent application
       // to store this information and not hassle them again.
